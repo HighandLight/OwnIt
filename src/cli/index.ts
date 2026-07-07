@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { runInit } from "./commands/init.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -8,6 +9,13 @@ export function createProgram(): Command {
     .name("ownit")
     .description("Turn Codex answers into your own knowledge.")
     .version("0.1.0");
+
+  program
+    .command("init")
+    .description("Initialize local DB and config in ~/.ownit")
+    .action(() => {
+      runInit();
+    });
 
   return program;
 }
