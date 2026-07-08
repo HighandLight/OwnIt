@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { input, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import type Database from "better-sqlite3";
 import { SCHEMA_NAMES, type LlmProvider } from "../src/llm/provider.js";
 import { openDb } from "../src/storage/db.js";
 import { runCheck } from "../src/cli/commands/check.js";
+import { createConceptCard } from "../src/storage/concept-card-repository.js";
+import type { NewConceptCard } from "../src/types/concept-card.js";
 import {
   CONCEPT_DETECTION_FIXTURE,
   CONCEPT_DETECTION_FIXTURE_MULTI,
@@ -31,21 +33,48 @@ class MultiConceptStubProvider implements LlmProvider {
 vi.mock("@inquirer/prompts", () => ({
   input: vi.fn(),
   select: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 const mockedInput = vi.mocked(input);
 const mockedSelect = vi.mocked(select);
+const mockedConfirm = vi.mocked(confirm);
 
-function submittedEvents(db: Database.Database) {
+function eventsNamed(db: Database.Database, eventName: string) {
   return db
     .prepare("SELECT * FROM learning_events WHERE event_name = ?")
-    .all("explain_check_submitted");
+    .all(eventName);
 }
+
+function submittedEvents(db: Database.Database) {
+  return eventsNamed(db, "explain_check_submitted");
+}
+
+function allCards(db: Database.Database) {
+  return db.prepare("SELECT * FROM concept_cards").all() as Array<{
+    id: string;
+    concept_name: string;
+  }>;
+}
+
+const EXISTING_CARD_INPUT: NewConceptCard = {
+  conceptName: CONCEPT_DETECTION_FIXTURE.concepts[0].name,
+  sourceType: "error_fix",
+  sourceSummary: "previous summary",
+  userExplanation: "이전 설명",
+  correctedExplanation: "이전 교정 설명",
+  status: "unclear",
+  firstExplainScore: 1,
+  missingPoints: ["예전 미흡 포인트"],
+  misconceptions: [],
+  reviewQuestions: ["예전 질문"],
+};
 
 describe("runCheck", () => {
   beforeEach(() => {
     mockedInput.mockReset();
     mockedSelect.mockReset();
+    mockedConfirm.mockReset();
   });
 
   it("asks the explain-check question, evaluates the mocked answer, prints the result, and records explain_check_submitted", async () => {
@@ -125,5 +154,68 @@ describe("runCheck", () => {
 
     expect(call.validate?.("")).not.toBe(true);
     expect(call.validate?.("real answer")).toBe(true);
+  });
+
+  it("saves the evaluation as a new concept card and records concept_card_created", async () => {
+    const provider = new MockLlmProvider();
+    const db = openDb(":memory:");
+    mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCheck(provider, db, "Codex output text");
+
+    const cards = allCards(db);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].concept_name).toBe(CONCEPT_DETECTION_FIXTURE.concepts[0].name);
+
+    const cardCreatedEvents = eventsNamed(db, "concept_card_created");
+    expect(cardCreatedEvents).toHaveLength(1);
+    expect((cardCreatedEvents[0] as { concept_id: string }).concept_id).toBe(
+      cards[0].id,
+    );
+
+    const printed = logSpy.mock.calls.flat().join("\n");
+    expect(printed).toContain(cards[0].id);
+
+    expect(mockedConfirm).not.toHaveBeenCalled(); // no pre-existing card with this name
+
+    logSpy.mockRestore();
+  });
+
+  it("asks to update via confirm() and updates the existing card in place when the conceptName already exists", async () => {
+    const provider = new MockLlmProvider();
+    const db = openDb(":memory:");
+    const existing = createConceptCard(db, EXISTING_CARD_INPUT);
+    mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
+    mockedConfirm.mockResolvedValue(true);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCheck(provider, db, "Codex output text");
+
+    expect(mockedConfirm).toHaveBeenCalledTimes(1);
+
+    const cards = allCards(db);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].id).toBe(existing.id);
+
+    const cardCreatedEvents = eventsNamed(db, "concept_card_created");
+    expect((cardCreatedEvents[0] as { concept_id: string }).concept_id).toBe(
+      existing.id,
+    );
+  });
+
+  it("creates a separate new card when the user declines the update via confirm()", async () => {
+    const provider = new MockLlmProvider();
+    const db = openDb(":memory:");
+    const existing = createConceptCard(db, EXISTING_CARD_INPUT);
+    mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
+    mockedConfirm.mockResolvedValue(false);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCheck(provider, db, "Codex output text");
+
+    const cards = allCards(db);
+    expect(cards).toHaveLength(2);
+    expect(cards.map((c) => c.id)).toContain(existing.id);
   });
 });

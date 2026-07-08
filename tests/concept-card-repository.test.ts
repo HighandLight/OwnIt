@@ -3,7 +3,9 @@ import type Database from "better-sqlite3";
 import { openDb } from "../src/storage/db.js";
 import {
   createConceptCard,
+  getConceptCardByConceptName,
   getConceptCardById,
+  updateConceptCard,
 } from "../src/storage/concept-card-repository.js";
 import type { NewConceptCard } from "../src/types/concept-card.js";
 
@@ -48,5 +50,39 @@ describe("concept-card-repository", () => {
 
   it("returns undefined for an unknown id", () => {
     expect(getConceptCardById(db, "does-not-exist")).toBeUndefined();
+  });
+
+  it("finds a concept card by its exact conceptName", () => {
+    const created = createConceptCard(db, newCard);
+
+    const found = getConceptCardByConceptName(db, newCard.conceptName);
+
+    expect(found).toEqual(created);
+  });
+
+  it("returns undefined from getConceptCardByConceptName when no card matches", () => {
+    expect(getConceptCardByConceptName(db, "no such concept")).toBeUndefined();
+  });
+
+  it("updates an existing concept card's content and bumps updatedAt", () => {
+    const created = createConceptCard(db, newCard);
+
+    const updatedInput: NewConceptCard = {
+      ...newCard,
+      status: "passed",
+      firstExplainScore: 5,
+      missingPoints: [],
+    };
+
+    const updated = updateConceptCard(db, created.id, updatedInput);
+
+    expect(updated.id).toBe(created.id);
+    expect(updated.status).toBe("passed");
+    expect(updated.firstExplainScore).toBe(5);
+    expect(updated.missingPoints).toEqual([]);
+    expect(updated.createdAt).toBe(created.createdAt);
+
+    const reloaded = getConceptCardById(db, created.id);
+    expect(reloaded).toEqual(updated);
   });
 });

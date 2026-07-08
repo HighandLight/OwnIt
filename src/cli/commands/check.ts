@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { input, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import type Database from "better-sqlite3";
+import { buildConceptCard } from "../../core/concept-card-builder.js";
 import { detectConcepts } from "../../core/concept-detector.js";
 import { evaluateExplanation } from "../../core/explain-evaluator.js";
 import type { LlmProvider } from "../../llm/provider.js";
+import {
+  createConceptCard,
+  getConceptCardByConceptName,
+  updateConceptCard,
+} from "../../storage/concept-card-repository.js";
 import { createEvent } from "../../storage/event-repository.js";
+import type { ConceptCard } from "../../types/concept-card.js";
 import type { DetectedConcept } from "../../types/concept.js";
 import type { ExplainEvaluation } from "../../types/evaluation.js";
 
@@ -13,6 +20,8 @@ export async function runCheck(
   db: Database.Database,
   inputText: string,
 ): Promise<void> {
+  const sessionId = randomUUID();
+
   const concepts = await detectConcepts(provider, inputText);
 
   if (concepts.length === 0) {
@@ -32,13 +41,47 @@ export async function runCheck(
 
   createEvent(db, {
     eventName: "explain_check_submitted",
-    sessionId: randomUUID(),
+    sessionId,
     properties: { conceptName: concept.name },
   });
 
   const evaluation = await evaluateExplanation(provider, concept, answer);
 
   printEvaluation(evaluation);
+
+  const savedCard = await saveConceptCard(db, concept, answer, evaluation);
+
+  createEvent(db, {
+    eventName: "concept_card_created",
+    sessionId,
+    conceptId: savedCard.id,
+    properties: { conceptName: concept.name },
+  });
+
+  console.log(`\nConcept Card 저장 완료. (id: ${savedCard.id})`);
+}
+
+async function saveConceptCard(
+  db: Database.Database,
+  concept: DetectedConcept,
+  userExplanation: string,
+  evaluation: ExplainEvaluation,
+): Promise<ConceptCard> {
+  const newCard = buildConceptCard(concept, userExplanation, evaluation);
+  const existing = getConceptCardByConceptName(db, concept.name);
+
+  if (!existing) {
+    return createConceptCard(db, newCard);
+  }
+
+  const shouldUpdate = await confirm({
+    message: `"${concept.name}" 카드가 이미 있어요. 업데이트할까요?`,
+    default: true,
+  });
+
+  return shouldUpdate
+    ? updateConceptCard(db, existing.id, newCard)
+    : createConceptCard(db, newCard);
 }
 
 async function selectConcept(

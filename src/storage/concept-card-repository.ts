@@ -104,3 +104,66 @@ export function getConceptCardById(
 
   return row ? rowToConceptCard(row) : undefined;
 }
+
+export function getConceptCardByConceptName(
+  db: Database.Database,
+  conceptName: string,
+): ConceptCard | undefined {
+  const row = db
+    .prepare(`SELECT * FROM concept_cards WHERE concept_name = ?`)
+    .get(conceptName) as ConceptCardRow | undefined;
+
+  return row ? rowToConceptCard(row) : undefined;
+}
+
+export function updateConceptCard(
+  db: Database.Database,
+  id: string,
+  input: NewConceptCard,
+): ConceptCard {
+  const existing = getConceptCardById(db, id);
+  if (!existing) {
+    throw new Error(`No concept card found with id: ${id}`);
+  }
+
+  const updated: ConceptCard = {
+    ...existing,
+    ...input,
+    updatedAt: new Date().toISOString(),
+  };
+
+  db.prepare(
+    `UPDATE concept_cards SET
+      concept_name = @conceptName,
+      source_type = @sourceType,
+      source_summary = @sourceSummary,
+      source_hash = @sourceHash,
+      user_explanation = @userExplanation,
+      corrected_explanation = @correctedExplanation,
+      status = @status,
+      first_explain_score = @firstExplainScore,
+      latest_recall_score = @latestRecallScore,
+      missing_points_json = @missingPointsJson,
+      misconceptions_json = @misconceptionsJson,
+      review_questions_json = @reviewQuestionsJson,
+      updated_at = @updatedAt
+    WHERE id = @id`,
+  ).run({
+    id: updated.id,
+    conceptName: updated.conceptName,
+    sourceType: updated.sourceType,
+    sourceSummary: updated.sourceSummary ?? null,
+    sourceHash: updated.sourceHash ?? null,
+    userExplanation: updated.userExplanation,
+    correctedExplanation: updated.correctedExplanation,
+    status: updated.status,
+    firstExplainScore: updated.firstExplainScore,
+    latestRecallScore: updated.latestRecallScore ?? null,
+    missingPointsJson: JSON.stringify(updated.missingPoints),
+    misconceptionsJson: JSON.stringify(updated.misconceptions),
+    reviewQuestionsJson: JSON.stringify(updated.reviewQuestions),
+    updatedAt: updated.updatedAt,
+  });
+
+  return updated;
+}
