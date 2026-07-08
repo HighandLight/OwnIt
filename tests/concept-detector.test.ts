@@ -30,7 +30,7 @@ describe("detectConcepts", () => {
     const input =
       "Codex output: use sk-proj-abcdefghijklmnopqrstuvwxyz1234567890 to authenticate";
 
-    await detectConcepts(stub, input);
+    await detectConcepts(stub, input, "ko");
 
     expect(stub.lastPrompt).toContain("[REDACTED]");
     expect(stub.lastPrompt).not.toContain(
@@ -41,7 +41,7 @@ describe("detectConcepts", () => {
   it("returns concepts parsed from the LLM's concept-detection response", async () => {
     const provider = new MockLlmProvider();
 
-    const result = await detectConcepts(provider, "some Codex answer");
+    const result = await detectConcepts(provider, "some Codex answer", "ko");
 
     expect(result).toEqual(CONCEPT_DETECTION_FIXTURE.concepts);
   });
@@ -49,7 +49,7 @@ describe("detectConcepts", () => {
   it("calls completeJson with the concept-detection schema name", async () => {
     const stub = new StubLlmProvider({ concepts: [] });
 
-    await detectConcepts(stub, "some Codex answer");
+    await detectConcepts(stub, "some Codex answer", "ko");
 
     expect(stub.lastSchemaName).toBe(SCHEMA_NAMES.conceptDetection);
   });
@@ -74,7 +74,7 @@ describe("detectConcepts", () => {
       ],
     });
 
-    const result = await detectConcepts(stub, "some Codex answer");
+    const result = await detectConcepts(stub, "some Codex answer", "ko");
 
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("high confidence concept");
@@ -83,7 +83,7 @@ describe("detectConcepts", () => {
   it("returns an empty array when the LLM reports no concepts", async () => {
     const stub = new StubLlmProvider({ concepts: [] });
 
-    const result = await detectConcepts(stub, "some Codex answer");
+    const result = await detectConcepts(stub, "some Codex answer", "ko");
 
     expect(result).toEqual([]);
   });
@@ -95,7 +95,29 @@ describe("detectConcepts", () => {
     };
 
     await expect(
-      detectConcepts(failingProvider, "some Codex answer"),
+      detectConcepts(failingProvider, "some Codex answer", "ko"),
     ).rejects.toThrow("network error");
+  });
+
+  it.each(["ko", "en"] as const)(
+    "includes a %s-language directive in the prompt",
+    async (language) => {
+      const stub = new StubLlmProvider({ concepts: [] });
+
+      await detectConcepts(stub, "some Codex answer", language);
+
+      expect(stub.lastPrompt.toLowerCase()).toContain(
+        language === "ko" ? "한국어" : "english",
+      );
+    },
+  );
+
+  it("always instructs the LLM to keep sourceType in English regardless of language", async () => {
+    const stub = new StubLlmProvider({ concepts: [] });
+
+    await detectConcepts(stub, "some Codex answer", "ko");
+
+    expect(stub.lastPrompt).toContain("sourceType");
+    expect(stub.lastPrompt.toLowerCase()).toContain("english");
   });
 });

@@ -83,7 +83,7 @@ describe("runCheck", () => {
     mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(provider, db, "Codex output text");
+    await runCheck(provider, db, "Codex output text", "ko");
 
     expect(mockedInput).toHaveBeenCalledTimes(1);
     expect(mockedSelect).not.toHaveBeenCalled(); // fixture has exactly 1 concept
@@ -107,7 +107,7 @@ describe("runCheck", () => {
     const db = openDb(":memory:");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(stubProvider, db, "Codex output text");
+    await runCheck(stubProvider, db, "Codex output text", "ko");
 
     expect(mockedInput).not.toHaveBeenCalled();
     expect(mockedSelect).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("runCheck", () => {
     mockedInput.mockResolvedValue("프록시 기반으로 AOP를 구현하기 때문입니다.");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(stub, db, "Codex output text");
+    await runCheck(stub, db, "Codex output text", "ko");
 
     expect(mockedSelect).toHaveBeenCalledTimes(1);
     const selectCall = mockedSelect.mock.calls[0][0];
@@ -146,7 +146,7 @@ describe("runCheck", () => {
     mockedInput.mockResolvedValue("real answer");
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(provider, db, "Codex output text");
+    await runCheck(provider, db, "Codex output text", "ko");
 
     const call = mockedInput.mock.calls[0]?.[0] as {
       validate?: (value: string) => boolean | string;
@@ -162,7 +162,7 @@ describe("runCheck", () => {
     mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(provider, db, "Codex output text");
+    await runCheck(provider, db, "Codex output text", "ko");
 
     const cards = allCards(db);
     expect(cards).toHaveLength(1);
@@ -190,7 +190,7 @@ describe("runCheck", () => {
     mockedConfirm.mockResolvedValue(true);
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(provider, db, "Codex output text");
+    await runCheck(provider, db, "Codex output text", "ko");
 
     expect(mockedConfirm).toHaveBeenCalledTimes(1);
 
@@ -212,7 +212,7 @@ describe("runCheck", () => {
     mockedConfirm.mockResolvedValue(false);
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runCheck(provider, db, "Codex output text");
+    await runCheck(provider, db, "Codex output text", "ko");
 
     const cards = allCards(db);
     expect(cards).toHaveLength(2);

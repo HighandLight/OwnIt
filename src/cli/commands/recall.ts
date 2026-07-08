@@ -9,11 +9,13 @@ import {
   selectNextReviewCard,
 } from "../../storage/concept-card-repository.js";
 import { createEvent } from "../../storage/event-repository.js";
+import type { Language } from "../../types/config.js";
 import { printEvaluation } from "./check.js";
 
 export async function runRecall(
   provider: LlmProvider,
   db: Database.Database,
+  language: Language,
 ): Promise<void> {
   const card = selectNextReviewCard(db);
 
@@ -50,7 +52,12 @@ export async function runRecall(
   });
 
   const recallConcept = toRecallConcept(card, question);
-  const evaluation = await evaluateExplanation(provider, recallConcept, answer);
+  const evaluation = await evaluateExplanation(
+    provider,
+    recallConcept,
+    answer,
+    language,
+  );
 
   createEvent(db, {
     eventName: "recall_check_evaluated",

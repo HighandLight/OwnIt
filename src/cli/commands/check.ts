@@ -13,16 +13,18 @@ import {
 import { createEvent } from "../../storage/event-repository.js";
 import type { ConceptCard } from "../../types/concept-card.js";
 import type { DetectedConcept } from "../../types/concept.js";
+import type { Language } from "../../types/config.js";
 import type { ExplainEvaluation } from "../../types/evaluation.js";
 
 export async function runCheck(
   provider: LlmProvider,
   db: Database.Database,
   inputText: string,
+  language: Language,
 ): Promise<void> {
   const sessionId = randomUUID();
 
-  const concepts = await detectConcepts(provider, inputText);
+  const concepts = await detectConcepts(provider, inputText, language);
 
   if (concepts.length === 0) {
     console.log("이번 답변에는 새로운 학습 개념이 없는 것 같아요.");
@@ -45,7 +47,12 @@ export async function runCheck(
     properties: { conceptName: concept.name },
   });
 
-  const evaluation = await evaluateExplanation(provider, concept, answer);
+  const evaluation = await evaluateExplanation(
+    provider,
+    concept,
+    answer,
+    language,
+  );
 
   printEvaluation(evaluation);
 

@@ -1,5 +1,6 @@
 import { SCHEMA_NAMES, type LlmProvider } from "../llm/provider.js";
 import type { DetectedConcept } from "../types/concept.js";
+import type { Language } from "../types/config.js";
 import type { EvaluationStatus, ExplainEvaluation } from "../types/evaluation.js";
 import { redact } from "./redaction.js";
 
@@ -21,6 +22,11 @@ Return strict JSON:
   "reviewQuestions": string[]
 }`;
 
+const LANGUAGE_DIRECTIVE: Record<Language, string> = {
+  ko: "correctParts, missingPoints, misconceptions, correctedExplanation, reviewQuestions는 모두 한국어로 작성하세요.",
+  en: "Write correctParts, missingPoints, misconceptions, correctedExplanation, and reviewQuestions all in English.",
+};
+
 export function statusFromScore(
   score: number,
   hasMisconceptions: boolean,
@@ -34,10 +40,13 @@ export async function evaluateExplanation(
   provider: LlmProvider,
   concept: DetectedConcept,
   userExplanation: string,
+  language: Language,
 ): Promise<ExplainEvaluation> {
   const redactedExplanation = redact(userExplanation);
 
   const prompt = `${INSTRUCTIONS}
+
+${LANGUAGE_DIRECTIVE[language]}
 
 Concept: ${concept.name}
 Question asked: ${concept.explainPrompt}

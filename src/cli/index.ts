@@ -1,10 +1,19 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { Command } from "commander";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runRecall } from "./commands/recall.js";
 import { OpenAiProvider } from "../llm/openai-provider.js";
 import { openDb } from "../storage/db.js";
+import { readConfig } from "../storage/config.js";
+import type { Language } from "../types/config.js";
+
+const DEFAULT_LANGUAGE: Language = "ko";
+
+function resolveLanguage(): Language {
+  return readConfig()?.language ?? DEFAULT_LANGUAGE;
+}
 
 export function createProgram(): Command {
   const program = new Command();
@@ -17,8 +26,8 @@ export function createProgram(): Command {
   program
     .command("init")
     .description("Initialize local DB and config in ~/.ownit")
-    .action(() => {
-      runInit();
+    .action(async () => {
+      await runInit();
     });
 
   program
@@ -34,7 +43,12 @@ export function createProgram(): Command {
 
       const db = openDb();
       try {
-        await runCheck(new OpenAiProvider(), db, options.text);
+        await runCheck(
+          new OpenAiProvider(),
+          db,
+          options.text,
+          resolveLanguage(),
+        );
       } finally {
         db.close();
       }
@@ -46,7 +60,7 @@ export function createProgram(): Command {
     .action(async () => {
       const db = openDb();
       try {
-        await runRecall(new OpenAiProvider(), db);
+        await runRecall(new OpenAiProvider(), db, resolveLanguage());
       } finally {
         db.close();
       }

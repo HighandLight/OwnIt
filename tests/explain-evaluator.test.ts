@@ -59,7 +59,7 @@ describe("evaluateExplanation", () => {
     const explanation =
       "제 API 키는 sk-proj-abcdefghijklmnopqrstuvwxyz1234567890 인데 이걸로 인증했어요";
 
-    await evaluateExplanation(stub, CONCEPT, explanation);
+    await evaluateExplanation(stub, CONCEPT, explanation, "ko");
 
     expect(stub.lastPrompt).toContain("[REDACTED]");
     expect(stub.lastPrompt).not.toContain(
@@ -74,6 +74,7 @@ describe("evaluateExplanation", () => {
       provider,
       CONCEPT,
       "같은 클래스 내부에서 호출하면 프록시를 거치지 않는다.",
+      "ko",
     );
 
     expect(result.correctParts).toEqual(EXPLAIN_EVALUATION_FIXTURE.correctParts);
@@ -91,7 +92,7 @@ describe("evaluateExplanation", () => {
       misconceptions: [],
     });
 
-    const result = await evaluateExplanation(stub, CONCEPT, "any explanation");
+    const result = await evaluateExplanation(stub, CONCEPT, "any explanation", "ko");
 
     expect(result.status).toBe("passed");
   });
@@ -99,8 +100,21 @@ describe("evaluateExplanation", () => {
   it("calls completeJson with the explain-evaluation schema name", async () => {
     const stub = new StubLlmProvider(EXPLAIN_EVALUATION_FIXTURE);
 
-    await evaluateExplanation(stub, CONCEPT, "any explanation");
+    await evaluateExplanation(stub, CONCEPT, "any explanation", "ko");
 
     expect(stub.lastSchemaName).toBe(SCHEMA_NAMES.explainEvaluation);
   });
+
+  it.each(["ko", "en"] as const)(
+    "includes a %s-language directive in the prompt",
+    async (language) => {
+      const stub = new StubLlmProvider(EXPLAIN_EVALUATION_FIXTURE);
+
+      await evaluateExplanation(stub, CONCEPT, "any explanation", language);
+
+      expect(stub.lastPrompt.toLowerCase()).toContain(
+        language === "ko" ? "한국어" : "english",
+      );
+    },
+  );
 });

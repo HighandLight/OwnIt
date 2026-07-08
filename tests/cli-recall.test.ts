@@ -55,7 +55,7 @@ describe("runRecall", () => {
     const db = openDb(":memory:");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runRecall(provider, db);
+    await runRecall(provider, db, "ko");
 
     expect(logSpy.mock.calls.flat().join("\n")).toContain(
       "review할 카드가 없습니다.",
@@ -75,7 +75,7 @@ describe("runRecall", () => {
     mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runRecall(provider, db);
+    await runRecall(provider, db, "ko");
 
     expect(mockedInput).toHaveBeenCalledTimes(1);
 
@@ -115,7 +115,7 @@ describe("runRecall", () => {
     mockedInput.mockResolvedValue("real answer");
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runRecall(provider, db);
+    await runRecall(provider, db, "ko");
 
     const call = mockedInput.mock.calls[0]?.[0] as {
       validate?: (value: string) => boolean | string;
