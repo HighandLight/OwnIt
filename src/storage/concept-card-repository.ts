@@ -167,3 +167,55 @@ export function updateConceptCard(
 
   return updated;
 }
+
+function findOneByStatus(
+  db: Database.Database,
+  status: ConceptCard["status"],
+): ConceptCard | undefined {
+  const row = db
+    .prepare(`SELECT * FROM concept_cards WHERE status = ? LIMIT 1`)
+    .get(status) as ConceptCardRow | undefined;
+
+  return row ? rowToConceptCard(row) : undefined;
+}
+
+function findOldestReviewedPassed(
+  db: Database.Database,
+): ConceptCard | undefined {
+  const row = db
+    .prepare(
+      `SELECT * FROM concept_cards
+       WHERE status = 'passed' AND last_reviewed_at IS NOT NULL
+       ORDER BY last_reviewed_at ASC
+       LIMIT 1`,
+    )
+    .get() as ConceptCardRow | undefined;
+
+  return row ? rowToConceptCard(row) : undefined;
+}
+
+function findNewestUnreviewedPassed(
+  db: Database.Database,
+): ConceptCard | undefined {
+  const row = db
+    .prepare(
+      `SELECT * FROM concept_cards
+       WHERE status = 'passed' AND last_reviewed_at IS NULL
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    )
+    .get() as ConceptCardRow | undefined;
+
+  return row ? rowToConceptCard(row) : undefined;
+}
+
+export function selectNextReviewCard(
+  db: Database.Database,
+): ConceptCard | undefined {
+  return (
+    findOneByStatus(db, "needs_review") ??
+    findOneByStatus(db, "unclear") ??
+    findOldestReviewedPassed(db) ??
+    findNewestUnreviewedPassed(db)
+  );
+}

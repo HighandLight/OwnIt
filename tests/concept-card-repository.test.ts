@@ -5,9 +5,13 @@ import {
   createConceptCard,
   getConceptCardByConceptName,
   getConceptCardById,
+  selectNextReviewCard,
   updateConceptCard,
 } from "../src/storage/concept-card-repository.js";
-import type { NewConceptCard } from "../src/types/concept-card.js";
+import type {
+  ConceptCardStatus,
+  NewConceptCard,
+} from "../src/types/concept-card.js";
 
 const newCard: NewConceptCard = {
   conceptName: "Spring @Transactional self-invocation",
@@ -84,5 +88,85 @@ describe("concept-card-repository", () => {
 
     const reloaded = getConceptCardById(db, created.id);
     expect(reloaded).toEqual(updated);
+  });
+
+  describe("selectNextReviewCard", () => {
+    function seedCard(
+      db: Database.Database,
+      conceptName: string,
+      status: ConceptCardStatus,
+    ) {
+      return createConceptCard(db, {
+        ...newCard,
+        conceptName,
+        status,
+      });
+    }
+
+    function setLastReviewedAt(
+      db: Database.Database,
+      id: string,
+      isoDate: string,
+    ) {
+      db.prepare(
+        "UPDATE concept_cards SET last_reviewed_at = ? WHERE id = ?",
+      ).run(isoDate, id);
+    }
+
+    function setCreatedAt(db: Database.Database, id: string, isoDate: string) {
+      db.prepare("UPDATE concept_cards SET created_at = ? WHERE id = ?").run(
+        isoDate,
+        id,
+      );
+    }
+
+    it("returns undefined when there are no concept cards", () => {
+      expect(selectNextReviewCard(db)).toBeUndefined();
+    });
+
+    it("prefers a needs_review card over unclear and passed cards", () => {
+      seedCard(db, "unclear concept", "unclear");
+      const needsReview = seedCard(db, "needs_review concept", "needs_review");
+      const passed = seedCard(db, "passed concept", "passed");
+      setLastReviewedAt(db, passed.id, "2026-01-01T00:00:00.000Z");
+
+      expect(selectNextReviewCard(db)?.id).toBe(needsReview.id);
+    });
+
+    it("falls back to an unclear card when there is no needs_review card", () => {
+      const unclear = seedCard(db, "unclear concept", "unclear");
+      const passed = seedCard(db, "passed concept", "passed");
+      setLastReviewedAt(db, passed.id, "2026-01-01T00:00:00.000Z");
+
+      expect(selectNextReviewCard(db)?.id).toBe(unclear.id);
+    });
+
+    it("falls back to the oldest-reviewed passed card when there is no needs_review or unclear card", () => {
+      const olderReview = seedCard(db, "older review", "passed");
+      setLastReviewedAt(db, olderReview.id, "2026-01-01T00:00:00.000Z");
+      const newerReview = seedCard(db, "newer review", "passed");
+      setLastReviewedAt(db, newerReview.id, "2026-06-01T00:00:00.000Z");
+
+      expect(selectNextReviewCard(db)?.id).toBe(olderReview.id);
+    });
+
+    it("falls back to the most recently created unreviewed passed card when nothing else qualifies", () => {
+      const older = seedCard(db, "older unreviewed", "passed");
+      setCreatedAt(db, older.id, "2026-01-01T00:00:00.000Z");
+      const newer = seedCard(db, "newer unreviewed", "passed");
+      setCreatedAt(db, newer.id, "2026-06-01T00:00:00.000Z");
+
+      expect(selectNextReviewCard(db)?.id).toBe(newer.id);
+    });
+
+    it("picks needs_review over everything when all four groups are present", () => {
+      const needsReview = seedCard(db, "needs_review concept", "needs_review");
+      seedCard(db, "unclear concept", "unclear");
+      const reviewedPassed = seedCard(db, "reviewed passed", "passed");
+      setLastReviewedAt(db, reviewedPassed.id, "2026-01-01T00:00:00.000Z");
+      seedCard(db, "unreviewed passed", "passed");
+
+      expect(selectNextReviewCard(db)?.id).toBe(needsReview.id);
+    });
   });
 });
