@@ -16,6 +16,27 @@ export const CONCEPT_DETECTION_FIXTURE = {
   ],
 };
 
+// PRD 7.1 Flow A 예시의 2개 후보 케이스 (select() 분기 테스트용)
+export const CONCEPT_DETECTION_FIXTURE_MULTI = {
+  concepts: [
+    {
+      name: "Spring @Transactional self-invocation",
+      reason: "에러 해결의 핵심 원리로 사용됨",
+      sourceType: "error_fix",
+      confidence: 0.88,
+      explainPrompt:
+        "왜 같은 클래스 내부 호출에서는 @Transactional이 적용되지 않을 수 있나요?",
+    },
+    {
+      name: "Spring proxy-based AOP",
+      reason: "프록시 기반 AOP 동작 원리 이해가 필요함",
+      sourceType: "concept_explanation",
+      confidence: 0.75,
+      explainPrompt: "Spring이 AOP를 구현할 때 프록시를 사용하는 이유는 무엇인가요?",
+    },
+  ],
+};
+
 // PRD 8.5 Feedback Evaluation 예시 (1~5점 스케일 반영)
 export const EXPLAIN_EVALUATION_FIXTURE = {
   score: 4,

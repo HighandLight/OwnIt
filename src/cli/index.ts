@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
+import { OpenAiProvider } from "../llm/openai-provider.js";
+import { openDb } from "../storage/db.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -15,6 +18,25 @@ export function createProgram(): Command {
     .description("Initialize local DB and config in ~/.ownit")
     .action(() => {
       runInit();
+    });
+
+  program
+    .command("check")
+    .description("Run an Explain Check on a Codex answer")
+    .option("--text <text>", "직접 텍스트 입력")
+    .action(async (options: { text?: string }) => {
+      if (!options.text) {
+        console.error('사용법: ownit check --text "..."');
+        process.exitCode = 1;
+        return;
+      }
+
+      const db = openDb();
+      try {
+        await runCheck(new OpenAiProvider(), db, options.text);
+      } finally {
+        db.close();
+      }
     });
 
   return program;
