@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import type { ConceptCard, NewConceptCard } from "../types/concept-card.js";
+import type { ExplainEvaluation } from "../types/evaluation.js";
 
 type ConceptCardRow = {
   id: string;
@@ -207,6 +208,46 @@ function findNewestUnreviewedPassed(
     .get() as ConceptCardRow | undefined;
 
   return row ? rowToConceptCard(row) : undefined;
+}
+
+export function recordRecallResult(
+  db: Database.Database,
+  cardId: string,
+  evaluation: ExplainEvaluation,
+): ConceptCard {
+  const existing = getConceptCardById(db, cardId);
+  if (!existing) {
+    throw new Error(`No concept card found with id: ${cardId}`);
+  }
+
+  const now = new Date().toISOString();
+  const updated: ConceptCard = {
+    ...existing,
+    status: evaluation.status,
+    latestRecallScore: evaluation.score,
+    lastReviewedAt: now,
+    reviewCount: existing.reviewCount + 1,
+    updatedAt: now,
+  };
+
+  db.prepare(
+    `UPDATE concept_cards SET
+      status = @status,
+      latest_recall_score = @latestRecallScore,
+      last_reviewed_at = @lastReviewedAt,
+      review_count = @reviewCount,
+      updated_at = @updatedAt
+    WHERE id = @id`,
+  ).run({
+    id: updated.id,
+    status: updated.status,
+    latestRecallScore: updated.latestRecallScore ?? null,
+    lastReviewedAt: updated.lastReviewedAt ?? null,
+    reviewCount: updated.reviewCount,
+    updatedAt: updated.updatedAt,
+  });
+
+  return updated;
 }
 
 export function selectNextReviewCard(

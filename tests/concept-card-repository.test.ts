@@ -5,6 +5,7 @@ import {
   createConceptCard,
   getConceptCardByConceptName,
   getConceptCardById,
+  recordRecallResult,
   selectNextReviewCard,
   updateConceptCard,
 } from "../src/storage/concept-card-repository.js";
@@ -12,6 +13,7 @@ import type {
   ConceptCardStatus,
   NewConceptCard,
 } from "../src/types/concept-card.js";
+import type { ExplainEvaluation } from "../src/types/evaluation.js";
 
 const newCard: NewConceptCard = {
   conceptName: "Spring @Transactional self-invocation",
@@ -167,6 +169,66 @@ describe("concept-card-repository", () => {
       seedCard(db, "unreviewed passed", "passed");
 
       expect(selectNextReviewCard(db)?.id).toBe(needsReview.id);
+    });
+  });
+
+  describe("recordRecallResult", () => {
+    const passingEvaluation: ExplainEvaluation = {
+      score: 5,
+      status: "passed",
+      correctParts: ["잘 설명했습니다."],
+      missingPoints: [],
+      misconceptions: [],
+      correctedExplanation: "교정된 설명",
+      reviewQuestions: ["다음 질문"],
+    };
+
+    it("updates status, latestRecallScore, lastReviewedAt, and bumps reviewCount", () => {
+      const created = createConceptCard(db, newCard); // status: needs_review
+
+      const updated = recordRecallResult(db, created.id, passingEvaluation);
+
+      expect(updated.status).toBe("passed");
+      expect(updated.latestRecallScore).toBe(5);
+      expect(updated.lastReviewedAt).toBeTruthy();
+      expect(updated.reviewCount).toBe(1);
+    });
+
+    it("leaves the original explain-check content untouched", () => {
+      const created = createConceptCard(db, newCard);
+
+      const updated = recordRecallResult(db, created.id, passingEvaluation);
+
+      expect(updated.userExplanation).toBe(created.userExplanation);
+      expect(updated.correctedExplanation).toBe(created.correctedExplanation);
+      expect(updated.missingPoints).toEqual(created.missingPoints);
+      expect(updated.misconceptions).toEqual(created.misconceptions);
+      expect(updated.reviewQuestions).toEqual(created.reviewQuestions);
+      expect(updated.firstExplainScore).toBe(created.firstExplainScore);
+    });
+
+    it("increments reviewCount on each successive call", () => {
+      const created = createConceptCard(db, newCard);
+
+      recordRecallResult(db, created.id, passingEvaluation);
+      const secondUpdate = recordRecallResult(db, created.id, passingEvaluation);
+
+      expect(secondUpdate.reviewCount).toBe(2);
+    });
+
+    it("persists the update so a fresh read reflects it", () => {
+      const created = createConceptCard(db, newCard);
+
+      const updated = recordRecallResult(db, created.id, passingEvaluation);
+      const reloaded = getConceptCardById(db, created.id);
+
+      expect(reloaded).toEqual(updated);
+    });
+
+    it("throws when the card id does not exist", () => {
+      expect(() =>
+        recordRecallResult(db, "does-not-exist", passingEvaluation),
+      ).toThrow();
     });
   });
 });

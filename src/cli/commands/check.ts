@@ -100,7 +100,7 @@ async function selectConcept(
   });
 }
 
-function printEvaluation(evaluation: ExplainEvaluation): void {
+export function printEvaluation(evaluation: ExplainEvaluation): void {
   console.log(`평가: ${evaluation.status}\n`);
 
   if (evaluation.correctParts.length > 0) {

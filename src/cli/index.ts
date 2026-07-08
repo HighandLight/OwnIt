@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
+import { runRecall } from "./commands/recall.js";
 import { OpenAiProvider } from "../llm/openai-provider.js";
 import { openDb } from "../storage/db.js";
 
@@ -34,6 +35,18 @@ export function createProgram(): Command {
       const db = openDb();
       try {
         await runCheck(new OpenAiProvider(), db, options.text);
+      } finally {
+        db.close();
+      }
+    });
+
+  program
+    .command("recall")
+    .description("Run a Recall Check on a saved Concept Card")
+    .action(async () => {
+      const db = openDb();
+      try {
+        await runRecall(new OpenAiProvider(), db);
       } finally {
         db.close();
       }
