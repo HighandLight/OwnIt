@@ -7,7 +7,7 @@
     "ownit": "./dist/cli/index.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "packageManager": "pnpm@11.10.0",
   "scripts": {
@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
-    "@types/node": "^20.14.0",
+    "@types/node": "^22.10.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   }
