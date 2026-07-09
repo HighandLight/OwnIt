@@ -204,6 +204,25 @@ describe("runCheck", () => {
     );
   });
 
+  it("does not save a card or record concept_card_created when save is false (--no-save)", async () => {
+    const provider = new MockLlmProvider();
+    const db = openDb(":memory:");
+    mockedInput.mockResolvedValue("같은 클래스 내부 호출은 프록시를 거치지 않는다.");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCheck(provider, db, "Codex output text", "ko", false);
+
+    expect(allCards(db)).toHaveLength(0);
+    expect(eventsNamed(db, "concept_card_created")).toHaveLength(0);
+    expect(submittedEvents(db)).toHaveLength(1); // explain_check_submitted still recorded
+    expect(mockedConfirm).not.toHaveBeenCalled();
+
+    const printed = logSpy.mock.calls.flat().join("\n");
+    expect(printed).toContain("needs_review");
+
+    logSpy.mockRestore();
+  });
+
   it("creates a separate new card when the user declines the update via confirm()", async () => {
     const provider = new MockLlmProvider();
     const db = openDb(":memory:");

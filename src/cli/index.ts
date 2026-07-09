@@ -26,15 +26,23 @@ export function createProgram(): Command {
   program
     .command("init")
     .description("Initialize local DB and config in ~/.ownit")
-    .action(async () => {
-      await runInit();
+    .option("--lang <language>", "언어를 지정해 비인터랙티브로 초기화 (ko|en)")
+    .action(async (options: { lang?: string }) => {
+      if (options.lang && options.lang !== "ko" && options.lang !== "en") {
+        console.error('--lang은 "ko" 또는 "en"이어야 합니다.');
+        process.exitCode = 1;
+        return;
+      }
+
+      await runInit(undefined, options.lang as Language | undefined);
     });
 
   program
     .command("check")
     .description("Run an Explain Check on a Codex answer")
     .option("--text <text>", "직접 텍스트 입력")
-    .action(async (options: { text?: string }) => {
+    .option("--no-save", "Concept Card 저장하지 않음")
+    .action(async (options: { text?: string; save: boolean }) => {
       if (!options.text) {
         console.error('사용법: ownit check --text "..."');
         process.exitCode = 1;
@@ -48,6 +56,7 @@ export function createProgram(): Command {
           db,
           options.text,
           resolveLanguage(),
+          options.save,
         );
       } finally {
         db.close();

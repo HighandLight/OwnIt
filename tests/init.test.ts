@@ -79,4 +79,17 @@ describe("ownit init", () => {
 
     logSpy.mockRestore();
   });
+
+  it("skips the language prompt when a preset language is given", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "ownit-init-"));
+    const ownitDir = join(tempDir, ".ownit");
+
+    await runInit(ownitDir, "en");
+
+    expect(mockedSelect).not.toHaveBeenCalled();
+    const configPath = join(ownitDir, "config.json");
+    expect(JSON.parse(readFileSync(configPath, "utf-8"))).toEqual({
+      language: "en",
+    });
+  });
 });

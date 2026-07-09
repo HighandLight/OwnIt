@@ -21,6 +21,7 @@ export async function runCheck(
   db: Database.Database,
   inputText: string,
   language: Language,
+  save: boolean = true,
 ): Promise<void> {
   const sessionId = randomUUID();
 
@@ -55,6 +56,10 @@ export async function runCheck(
   );
 
   printEvaluation(evaluation);
+
+  if (!save) {
+    return;
+  }
 
   const savedCard = await saveConceptCard(db, concept, answer, evaluation);
 

@@ -5,7 +5,10 @@ import { OWNIT_DIR, openDb } from "../../storage/db.js";
 import { readConfig, writeConfig } from "../../storage/config.js";
 import type { Language } from "../../types/config.js";
 
-export async function runInit(ownitDir: string = OWNIT_DIR): Promise<void> {
+export async function runInit(
+  ownitDir: string = OWNIT_DIR,
+  presetLanguage?: Language,
+): Promise<void> {
   mkdirSync(ownitDir, { recursive: true });
 
   const db = openDb(join(ownitDir, "ownit.db"));
@@ -19,13 +22,15 @@ export async function runInit(ownitDir: string = OWNIT_DIR): Promise<void> {
     return;
   }
 
-  const language = await select<Language>({
-    message: "Concept Card와 질문에 사용할 언어를 선택하세요",
-    choices: [
-      { name: "한국어", value: "ko" },
-      { name: "English", value: "en" },
-    ],
-  });
+  const language =
+    presetLanguage ??
+    (await select<Language>({
+      message: "Concept Card와 질문에 사용할 언어를 선택하세요",
+      choices: [
+        { name: "한국어", value: "ko" },
+        { name: "English", value: "en" },
+      ],
+    }));
 
   writeConfig(ownitDir, { language });
 
